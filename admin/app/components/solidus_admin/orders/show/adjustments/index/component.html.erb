@@ -1,0 +1,145 @@
+<%= page do %>
+  <%= page_header do %>
+    <%= page_header_back(solidus_admin.order_path(@order)) %>
+    <%= page_header_title(t(".title", number: @order.number)) %>
+    <%= page_header_actions do %>
+      <%= render component("ui/button").new(
+        tag: :button,
+        scheme: :secondary,
+        text: t(".discard"),
+        form: form_id
+      ) %>
+      <%= render component("ui/button").new(tag: :button, text: t(".save"), form: form_id) %>
+    <% end %>
+  <% end %>
+
+  <%= page_with_sidebar do %>
+    <%= page_with_sidebar_main do %>
+      <%= render component("ui/table").new(
+        id: "order-adjustments-list",
+        model_class: Spree::Adjustment,
+        rows: @adjustments,
+        search_key: :label_cont,
+        search_url: solidus_admin.order_adjustments_path(@order),
+        batch_actions: [
+          {
+            display_name: t(".batch_actions.lock"),
+            action: solidus_admin.lock_order_adjustments_path(@order),
+            method: :put,
+            icon: "lock-line"
+          },
+          {
+            display_name: t(".batch_actions.unlock"),
+            action: solidus_admin.unlock_order_adjustments_path(@order),
+            method: :put,
+            icon: "lock-unlock-line"
+          },
+          {
+            display_name: t(".batch_actions.delete"),
+            action: spree.admin_order_adjustment_path(@order, '[]'),
+            method: :delete,
+            icon: "delete-bin-7-line"
+          },
+        ],
+        columns: [
+          {
+            header: :state,
+            col: { class: 'w-[calc(5rem+2rem+2.5rem+1px)]' },
+            data: ->(adjustment) {
+              if adjustment.finalized?
+                icon = 'lock-fill'
+                title = t(".state.locked")
+              else
+                icon = 'lock-unlock-line'
+                title = t(".state.unlocked")
+              end
+              icon_tag(icon, class: "w-5 h-5 align-middle") + tag.span(title)
+            }
+          },
+          {
+            header: :adjustable,
+            col: { class: 'w-56' },
+            data: ->(adjustment) {
+              tag.figure(safe_join([
+                render(component("ui/thumbnail").for(adjustment.adjustable, class: "basis-10")),
+                figcaption_for_adjustable(adjustment),
+              ]), class: "flex items-center gap-2")
+            }
+          },
+          {
+            header: :source,
+            col: { class: "w-56" },
+            data: ->(adjustment) {
+              tag.figure(safe_join([
+                figcaption_for_source(adjustment),
+              ]), class: "flex items-center gap-2")
+            }
+          },
+          {
+            header: :amount,
+            col: { class: 'w-24' },
+            data: ->(adjustment) { tag.span adjustment.display_amount.to_html, class: "grow text-right whitespace-nowrap" }
+          },
+          {
+            header: tag.span(t(".actions.title"), class: 'sr-only'),
+            col: { class: 'w-24' },
+            wrap: false,
+            data: ->(adjustment) do
+              render(component('ui/dropdown').new(direction: :right, class: 'relative w-fit m-auto').with_content(
+                (adjustment.source ? ''.html_safe : link_to(
+                  t(".actions.edit"),
+                  spree.edit_admin_order_adjustment_path(@order, adjustment),
+                  class: 'body-link',
+                )) + if adjustment.finalized?
+                  link_to(
+                    t(".actions.unlock"),
+                    solidus_admin.unlock_order_adjustments_path(@order, id: adjustment),
+                    "data-turbo-method": :put,
+                    "data-turbo-confirm": t('.confirm'),
+                    class: 'body-link',
+                  )
+                else
+                  safe_join([
+                    link_to(
+                      t(".actions.lock"),
+                      solidus_admin.lock_order_adjustments_path(@order, id: adjustment),
+                      "data-turbo-method": :put,
+                      "data-turbo-confirm": t('.confirm'),
+                      class: 'body-link',
+                    ),
+                    link_to(
+                      t(".actions.delete"),
+                      spree.admin_order_adjustment_path(@order, adjustment),
+                      "data-turbo-method": :delete,
+                      "data-turbo-confirm": t('.confirm'),
+                      class: 'body-link !text-red-500',
+                    )
+                  ])
+                end
+              ))
+            end
+          },
+        ]
+      ) %>
+    <% end %>
+
+    <%= page_with_sidebar_aside do %>
+      <%= render component('ui/panel').new(title: t(".totals.adjustable")) do |panel| %>
+        <% panel.with_section do %>
+          <%= render component('ui/details_list').new(items: @adjustments.group(:adjustable_type).sum(:amount).map { |type, amount|
+            { label: (type ? type.constantize.model_name.human : tag.em(t('.none'))), value: Spree::Money.new(amount).to_html }
+          }.sort_by { _1[:label] }) %>
+        <% end %>
+      <% end %>
+
+      <%= render component('ui/panel').new(title: t(".totals.source")) do |panel| %>
+        <% panel.with_section do %>
+          <%= render component('ui/details_list').new(items: @adjustments.group(:source_type).sum(:amount).map { |type, amount|
+            { label: (type ? type.constantize.model_name.human : tag.em(t('.none'))), value: Spree::Money.new(amount).to_html }
+          }.sort_by { _1[:label] }) %>
+        <% end %>
+      <% end %>
+    <% end %>
+  <% end %>
+
+<% end %>
