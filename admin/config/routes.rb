@@ -30,4 +30,10 @@ SolidusAdmin::Engine.routes.draw do
       get :customers_for
     end
   end
+
+  resources :tax_categories, only: [:index] do
+    collection do
+      delete :destroy
+    end
+  end
 end

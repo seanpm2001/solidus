@@ -1,0 +1,6 @@
+en:
+  "yes": "Yes"
+  "no": "No"
+  add: 'Add Tax Category'
+  batch_actions:
+    delete: 'Delete'
